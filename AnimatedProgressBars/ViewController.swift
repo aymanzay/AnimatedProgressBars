@@ -12,6 +12,8 @@ class ViewController: UIViewController, URLSessionDownloadDelegate {
     
     let shapeLayer = CAShapeLayer()
     
+    var pulsatingLayer: CAShapeLayer!
+    
     let percentageLabel: UILabel = {
         let label = UILabel()
         label.text = "Start"
@@ -21,11 +23,15 @@ class ViewController: UIViewController, URLSessionDownloadDelegate {
         
         return label
     }()
-
-    fileprivate func setShapeLayerProperties(_ circularPath: UIBezierPath) {
+    
+    override var preferredStatusBarStyle: UIStatusBarStyle {
+        return .lightContent
+    }
+    
+    fileprivate func createShapeLayer(_ circularPath: UIBezierPath) {
         shapeLayer.path = circularPath.cgPath
         
-        shapeLayer.strokeColor = UIColor.red.cgColor
+        shapeLayer.strokeColor = UIColor.outlineStrokeColor.cgColor
         shapeLayer.lineWidth = 10
         
         shapeLayer.fillColor = UIColor.clear.cgColor
@@ -38,37 +44,81 @@ class ViewController: UIViewController, URLSessionDownloadDelegate {
         shapeLayer.transform = CATransform3DMakeRotation(-CGFloat.pi/2, 0, 0, 1)
     }
     
+    private func setupNotificationObservers() {
+        NotificationCenter.default.addObserver(self, selector: #selector(handleEnterForeground), name: .UIApplicationWillEnterForeground, object: nil)
+    }
+    
+    @objc private func handleEnterForeground() {
+        animatePulsatingLayer()
+    }
+    
+    fileprivate func createPulsatingLayer(_ circularPath: UIBezierPath) {
+        pulsatingLayer = CAShapeLayer()
+        pulsatingLayer.path = circularPath.cgPath
+        pulsatingLayer.strokeColor = UIColor.clear.cgColor
+        
+        pulsatingLayer.lineWidth = 10
+        pulsatingLayer.fillColor = UIColor.pulsatingFillColor.cgColor
+        
+        pulsatingLayer.lineCap = kCALineCapRound
+        pulsatingLayer.position = view.center
+    }
+    
+    fileprivate func createTrackLayer(_ trackLayer: CAShapeLayer, _ circularPath: UIBezierPath) {
+        trackLayer.path = circularPath.cgPath
+        trackLayer.strokeColor = UIColor.trackStrokeColor.cgColor
+        
+        trackLayer.lineWidth = 10
+        trackLayer.fillColor = UIColor.black.cgColor
+        
+        trackLayer.lineCap = kCALineCapRound
+        trackLayer.position = view.center
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        view.backgroundColor = .black
+        setupNotificationObservers()
+        
+        view.backgroundColor = UIColor.bgColor
+        
+        //progress bar layer
+        let circularPath = UIBezierPath(arcCenter: .zero, radius: 100, startAngle: 0, endAngle: 2 * CGFloat.pi, clockwise: true)
+        
+        createPulsatingLayer(circularPath) //create pulsating layer
+        view.layer.addSublayer(pulsatingLayer)
+        
+        //track layer
+        let trackLayer = CAShapeLayer()
+        createTrackLayer(trackLayer, circularPath) //create track layer
+        
+        view.layer.addSublayer(trackLayer)
+        
+        animatePulsatingLayer() //animate pulsating layer
         
         view.addSubview(percentageLabel)
         percentageLabel.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
         percentageLabel.center = view.center
         
-        //progress bar layer
-        let circularPath = UIBezierPath(arcCenter: .zero, radius: 100, startAngle: 0, endAngle: 2 * CGFloat.pi, clockwise: true)
-        
-        //track layer
-        let trackLayer = CAShapeLayer()
-        trackLayer.path = circularPath.cgPath
-        trackLayer.strokeColor = UIColor.lightGray.cgColor
-        
-        trackLayer.lineWidth = 10
-        trackLayer.fillColor = UIColor.clear.cgColor
-        
-        trackLayer.lineCap = kCALineCapRound
-        trackLayer.position = view.center
-        
-        view.layer.addSublayer(trackLayer)
-        
-        
-        setShapeLayerProperties(circularPath)
+        createShapeLayer(circularPath) //create shape layer
         
         view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(handleTap)))
         
         view.layer.addSublayer(shapeLayer)
+    }
+    
+    func animatePulsatingLayer() {
+        let animation = CABasicAnimation(keyPath: "transform.scale")
+        animation.toValue = 1.3
+        animation.duration = 0.8
+        animation.timingFunction = CAMediaTimingFunction(name: kCAMediaTimingFunctionEaseOut)
+        
+        animation.autoreverses = true
+        animation.repeatCount = Float.infinity
+        
+        pulsatingLayer.add(animation, forKey: "pulsing")
+        
+        
     }
     
     @objc private func handleTap() {
@@ -117,6 +167,8 @@ class ViewController: UIViewController, URLSessionDownloadDelegate {
         print("finished downloading file")
     }
     
+    
+    //not used
     fileprivate func animateCircle() {
         let basicAnimation = CABasicAnimation(keyPath: "strokeEnd")
         
